@@ -214,10 +214,12 @@ Clonar el proyecto desde GitHub:
 
 ```bash
 git clone https://github.com/santiagobotero-png/Redes.git
-
+```
 Ingresar a la carpeta del proyecto
 
+```
 cd Redes
+```
 
 ---
 # Instalación y Despliegue
