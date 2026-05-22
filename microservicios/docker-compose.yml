@@ -1,0 +1,126 @@
+version: "3.8"
+
+services:
+
+  # =========================
+  # MYSQL USUARIOS
+  # =========================
+  mysql_usuarios:
+    image: mysql:8
+    container_name: mysql-usuarios
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: 1234
+      MYSQL_DATABASE: hotel_usuarios_db
+    volumes:
+      - mysql_usuarios_data:/var/lib/mysql
+      - ./db/init_usuarios:/docker-entrypoint-initdb.d
+    networks:
+      - hotel-network
+
+  # =========================
+  # MYSQL SERVICIOS
+  # =========================
+  mysql_servicios:
+    image: mysql:8
+    container_name: mysql-servicios
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: 1234
+      MYSQL_DATABASE: hotelroyal
+    volumes:
+      - mysql_servicios_data:/var/lib/mysql
+      - ./db/init_servicios:/docker-entrypoint-initdb.d
+    networks:
+      - hotel-network
+
+  # =========================
+  # MYSQL ORDENES
+  # =========================
+  mysql_ordenes:
+    image: mysql:8
+    container_name: mysql-ordenes
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: 1234
+      MYSQL_DATABASE: hotel_ordenes_db
+    volumes:
+      - mysql_ordenes_data:/var/lib/mysql
+      - ./db/init_ordenes:/docker-entrypoint-initdb.d
+    networks:
+      - hotel-network
+
+  # =========================
+  # USUARIOS
+  # =========================
+  usuarios:
+    build: ./usuarios
+    container_name: usuarios-service
+    restart: always
+    ports:
+      - "3001:3000"
+    environment:
+      PORT: 3000
+      DB_HOST: mysql_usuarios
+      DB_USER: root
+      DB_PASSWORD: 1234
+      DB_NAME: hotel_usuarios_db
+    depends_on:
+      - mysql_usuarios
+    networks:
+      - hotel-network
+
+  # =========================
+  # SERVICIOS
+  # =========================
+  servicios:
+    build: ./servicios
+    container_name: servicios-service
+    restart: always
+    ports:
+      - "3002:3000"
+    environment:
+      PORT: 3000
+      DB_HOST: mysql_servicios
+      DB_USER: root
+      DB_PASSWORD: 1234
+      DB_NAME: hotelroyal
+    depends_on:
+      - mysql_servicios
+    networks:
+      - hotel-network
+
+  # =========================
+  # ORDENES
+  # =========================
+  ordenes:
+    build: ./ordenes
+    container_name: ordenes-service
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      PORT: 3000
+      DB_HOST: mysql_ordenes
+      DB_USER: root
+      DB_PASSWORD: 1234
+      DB_NAME: hotel_ordenes_db
+
+      USUARIOS_SERVICE: http://usuarios:3000/api/usuarios
+      HABITACIONES_SERVICE: http://servicios:3000/api/habitaciones
+      SERVICIOS_SERVICE: http://servicios:3000/api/servicios
+    depends_on:
+      - mysql_ordenes
+      - usuarios
+      - servicios
+    networks:
+      - hotel-network
+
+volumes:
+  mysql_usuarios_data:
+  mysql_servicios_data:
+  mysql_ordenes_data:
+
+networks:
+  hotel-network:
+    driver: bridge

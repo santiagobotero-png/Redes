@@ -1,0 +1,316 @@
+version: "3.9"
+
+services:
+
+  # =====================================================
+  # MYSQL - USUARIOS
+  # =====================================================
+  mysql_usuarios:
+    image: santiagobd/mysql-usuarios:latest
+
+    environment:
+      MYSQL_ROOT_PASSWORD: 1234
+      MYSQL_DATABASE: hotel_usuarios_db
+
+    volumes:
+      - usuarios_data:/var/lib/mysql
+
+    networks:
+      - hotel-network
+
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+
+  # =====================================================
+  # MYSQL - SERVICIOS
+  # =====================================================
+  mysql_servicios:
+    image: santiagobd/mysql-servicios:latest
+
+    environment:
+      MYSQL_ROOT_PASSWORD: 1234
+      MYSQL_DATABASE: hotelroyal
+
+    volumes:
+      - servicios_data:/var/lib/mysql
+
+    networks:
+      - hotel-network
+
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+
+  # =====================================================
+  # MYSQL - ORDENES
+  # =====================================================
+  mysql_ordenes:
+    image: santiagobd/mysql-ordenes:latest
+
+    environment:
+      MYSQL_ROOT_PASSWORD: 1234
+      MYSQL_DATABASE: hotel_ordenes_db
+
+    volumes:
+      - ordenes_data:/var/lib/mysql
+
+    networks:
+      - hotel-network
+
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+
+  # =====================================================
+  # USUARIOS
+  # =====================================================
+  usuarios:
+    image: santiagobd/usuarios-service:latest
+
+    environment:
+      PORT: 3000
+      DB_HOST: mysql_usuarios
+      DB_USER: root
+      DB_PASSWORD: 1234
+      DB_NAME: hotel_usuarios_db
+
+    networks:
+      - hotel-network
+
+    deploy:
+      replicas: 3
+
+  # =====================================================
+  # SERVICIOS
+  # =====================================================
+  servicios:
+    image: santiagobd/servicios-service:latest
+
+    environment:
+      PORT: 3000
+      DB_HOST: mysql_servicios
+      DB_USER: root
+      DB_PASSWORD: 1234
+      DB_NAME: hotelroyal
+
+    networks:
+      - hotel-network
+
+    deploy:
+      replicas: 3
+
+  # =====================================================
+  # ORDENES
+  # =====================================================
+  ordenes:
+    image: santiagobd/ordenes-service:latest
+
+    environment:
+      PORT: 3000
+      DB_HOST: mysql_ordenes
+      DB_USER: root
+      DB_PASSWORD: 1234
+      DB_NAME: hotel_ordenes_db
+      USUARIOS_SERVICE: http://usuarios:3000/api/usuarios
+      HABITACIONES_SERVICE: http://servicios:3000/api/habitaciones
+      SERVICIOS_SERVICE: http://servicios:3000/api/servicios
+
+    networks:
+      - hotel-network
+
+    deploy:
+      replicas: 3
+
+  # =====================================================
+  # FRONTEND
+  # =====================================================
+  frontend:
+    image: santiagobd/frontend-hoteles:1.7
+
+    ports:
+      - "8085:80"
+
+    networks:
+      - hotel-network
+
+    deploy:
+      replicas: 1
+
+  # =====================================================
+  # HADOOP NAMENODE
+  # =====================================================
+  namenode:
+    image: bde2020/hadoop-namenode:2.0.0-hadoop3.2.1-java8
+
+    hostname: namenode
+
+    environment:
+      CLUSTER_NAME: hotel-cluster
+      CORE_CONF_fs_defaultFS: hdfs://namenode:9000
+      CORE_CONF_hadoop_http_staticuser_user: root
+      HDFS_CONF_dfs_client_use_datanode_hostname: "true"
+      HDFS_CONF_dfs_datanode_use_datanode_hostname: "true"
+      HDFS_CONF_dfs_namenode_datanode_registration_ip___hostname___check: "false"
+      HDFS_CONF_dfs_replication: 1
+
+    ports:
+      - "9870:9870"
+      - "9000:9000"
+
+    volumes:
+      - namenode_data:/hadoop/dfs/name
+
+    deploy:
+      placement:
+        constraints:
+          - node.hostname == servidorUbuntu1
+
+    networks:
+      - hotel-network
+
+  # =====================================================
+  # HADOOP DATANODE
+  # =====================================================
+  datanode:
+    image: bde2020/hadoop-datanode:2.0.0-hadoop3.2.1-java8
+
+    hostname: datanode
+
+    environment:
+      SERVICE_PRECONDITION: "namenode:9870"
+      CORE_CONF_fs_defaultFS: hdfs://namenode:9000
+      CORE_CONF_hadoop_http_staticuser_user: root
+
+      HDFS_CONF_dfs_datanode_hostname: datanode
+      HDFS_CONF_dfs_datanode_address: 0.0.0.0:9866
+      HDFS_CONF_dfs_datanode_http_address: 0.0.0.0:9864
+      HDFS_CONF_dfs_datanode_ipc_address: 0.0.0.0:9867
+
+      HDFS_CONF_dfs_client_use_datanode_hostname: "true"
+      HDFS_CONF_dfs_datanode_use_datanode_hostname: "true"
+      HDFS_CONF_dfs_namenode_datanode_registration_ip___hostname___check: "false"
+
+      HDFS_CONF_dfs_replication: 1
+
+    volumes:
+      - datanode_data:/hadoop/dfs/data
+
+    deploy:
+      placement:
+        constraints:
+          - node.hostname == servidorUbuntu2
+
+    networks:
+      - hotel-network
+
+  # =====================================================
+  # SPARK MASTER
+  # =====================================================
+  spark-master:
+    image: apache/spark:3.5.1
+
+    command:
+      - /opt/spark/bin/spark-class
+      - org.apache.spark.deploy.master.Master
+
+    environment:
+      - SPARK_MASTER_PORT=7077
+      - SPARK_MASTER_WEBUI_PORT=8080
+
+    ports:
+      - "7077:7077"
+      - "8080:8080"
+
+    deploy:
+      placement:
+        constraints:
+          - node.hostname == servidorUbuntu1
+
+    networks:
+      - hotel-network
+
+  # =====================================================
+  # SPARK WORKERS
+  # =====================================================
+  spark-worker:
+    image: apache/spark:3.5.1
+
+    command:
+      - /opt/spark/bin/spark-class
+      - org.apache.spark.deploy.worker.Worker
+      - spark://spark-master:7077
+
+    environment:
+      - SPARK_WORKER_CORES=1
+      - SPARK_WORKER_MEMORY=1G
+
+    deploy:
+      replicas: 2
+
+    networks:
+      - hotel-network
+
+  # =====================================================
+  # DASHBOARD
+  # =====================================================
+  dashboard:
+    image: santiagobd/dashboard-hoteles:1.4
+
+    ports:
+      - "8501:8501"
+
+    volumes:
+      - /data:/data
+
+    deploy:
+      placement:
+        constraints:
+          - node.hostname == servidorUbuntu1
+
+    networks:
+      - hotel-network
+
+  # =====================================================
+  # HAPROXY
+  # =====================================================
+  haproxy:
+    image: santiagobd/haproxy-hoteles:1.4
+
+    ports:
+      - "80:80"
+      - "8404:8404"
+
+    deploy:
+      placement:
+        constraints:
+          - node.hostname == servidorUbuntu1
+
+    networks:
+      - hotel-network
+
+# =====================================================
+# VOLUMES
+# =====================================================
+
+volumes:
+  usuarios_data:
+  servicios_data:
+  ordenes_data:
+  namenode_data:
+  datanode_data:
+
+# =====================================================
+# NETWORK
+# =====================================================
+
+networks:
+  hotel-network:
+    driver: overlay
+    attachable: true

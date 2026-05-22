@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8">
+  <title>Detalle de Reserva</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+
+<body>
+
+<nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+  <div class="container-fluid">
+    <a class="navbar-brand" href="panel_huesped.html">🏨 Panel Huésped</a>
+  </div>
+</nav>
+
+<div class="container mt-5">
+
+  <h2 class="text-center mb-4">Detalle de Reserva</h2>
+
+  <!-- 🔹 INFO RESERVA -->
+  <div id="reserva-info" class="card shadow p-4 d-none">
+
+    <p><strong>ID:</strong> <span id="r_id"></span></p>
+    <p><strong>Cliente:</strong> <span id="r_cliente"></span></p>
+    <p><strong>Habitación:</strong> <span id="r_habitacion"></span></p>
+    <p><strong>Inicio:</strong> <span id="r_inicio"></span></p>
+    <p><strong>Fin:</strong> <span id="r_fin"></span></p>
+    <p><strong>Estado:</strong> <span id="r_estado"></span></p>
+
+    <hr>
+
+    <h5>Totales</h5>
+    <p>Habitación: $<span id="t_habitacion"></span></p>
+    <p>Servicios: $<span id="t_servicios"></span></p>
+    <p><strong>Total: $<span id="t_total"></span></strong></p>
+
+    <!-- 🔥 BOTÓN DINÁMICO -->
+    <div class="mt-3" id="acciones-reserva"></div>
+
+  </div>
+
+  <!-- 🔹 CONSUMOS -->
+  <div id="consumos-section" class="card mt-4 d-none">
+
+    <div class="card-header bg-success text-white">
+      Consumos
+    </div>
+
+    <div class="card-body">
+
+      <table class="table table-bordered">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Servicio</th>
+            <th>Cantidad</th>
+            <th>Precio</th>
+            <th>Estado</th>
+            <th>Acción</th>
+          </tr>
+        </thead>
+        <tbody id="tabla-consumos"></tbody>
+      </table>
+
+    </div>
+
+  </div>
+
+  <div class="text-center mt-4">
+    <a href="panel_huesped.html" class="btn btn-secondary">Volver</a>
+  </div>
+
+  <div id="mensaje" class="alert mt-3 d-none"></div>
+
+</div>
+
+<script>
+
+// 🔹 CARGAR TODO
+async function cargarReserva() {
+
+  const params = new URLSearchParams(window.location.search);
+  const id = params.get("id");
+
+  if (!id) {
+    mostrarMensaje("ID de reserva no proporcionado", "danger");
+    return;
+  }
+
+  try {
+
+    // 🔹 RESERVA
+    const res = await fetch(`http://192.168.100.2/api/ordenes/reservas/${id}`);
+    const reserva = await res.json();
+
+    if (reserva.error) throw new Error(reserva.error);
+
+    mostrarReserva(reserva);
+
+    // 🔹 TOTALES
+    const resTotal = await fetch(`http://192.168.100.2/api/ordenes/reservas/${id}/total`);
+    const total = await resTotal.json();
+
+    if (total.error) throw new Error(total.error);
+
+    document.getElementById('t_habitacion').textContent = total.total_habitacion;
+    document.getElementById('t_servicios').textContent = total.total_servicios;
+    document.getElementById('t_total').textContent = total.total;
+
+    // 🔹 CONSUMOS
+    await cargarConsumos(id);
+
+  } catch (error) {
+    console.error(error);
+    mostrarMensaje("Error al cargar la reserva", "danger");
+  }
+
+}
+
+// 🔹 MOSTRAR RESERVA
+function mostrarReserva(r) {
+
+  document.getElementById('reserva-info').classList.remove('d-none');
+
+  document.getElementById('r_id').textContent = r.id_reserva;
+  document.getElementById('r_cliente').textContent = r.id_cliente;
+  document.getElementById('r_habitacion').textContent = r.id_habitacion;
+  document.getElementById('r_inicio').textContent = formatearFecha(r.fecha_inicio);
+  document.getElementById('r_fin').textContent = formatearFecha(r.fecha_fin);
+  document.getElementById('r_estado').textContent = r.estado;
+
+  const acciones = document.getElementById('acciones-reserva');
+  acciones.innerHTML = '';
+
+  // 🔥 BOTÓN SOLO SI ACTIVA
+  if (r.estado === "activa") {
+    acciones.innerHTML = `
+      <button onclick="pagarReserva(${r.id_reserva})" 
+              class="btn btn-primary">
+        Finalizar y pagar reserva
+      </button>
+    `;
+  }
+}
+
+// 🔹 CONSUMOS
+async function cargarConsumos(id) {
+
+  try {
+
+    const res = await fetch(`http://192.168.100.2/api/ordenes/reservas/${id}/consumos`);
+    const consumos = await res.json();
+
+    console.log("Consumos:", consumos);
+
+    if (!consumos || consumos.length === 0) return;
+
+    const tbody = document.getElementById('tabla-consumos');
+    tbody.innerHTML = '';
+
+    document.getElementById('consumos-section').classList.remove('d-none');
+
+    consumos.forEach(c => {
+
+      const row = document.createElement('tr');
+
+      row.innerHTML = `
+        <td>${c.id_consumo}</td>
+        <td>${c.nombre_servicio || 'N/A'}</td>
+        <td>${c.cantidad}</td>
+        <td>$${c.precio_aplicado}</td>
+        <td>${obtenerEstado(c)}</td>
+        <td>
+          ${(!c.anulado && !c.pagado) 
+            ? `<button onclick="pagar(${c.id_consumo})" class="btn btn-success btn-sm">Pagar</button>` 
+            : ''}
+        </td>
+      `;
+
+      tbody.appendChild(row);
+
+    });
+
+  } catch (error) {
+    console.error("Error cargando consumos:", error);
+  }
+}
+
+// 🔹 ESTADO CONSUMO
+function obtenerEstado(c) {
+  if (c.anulado) return "Cancelado";
+  if (c.pagado) return "Pagado";
+  return "Pendiente";
+}
+
+// 🔹 PAGAR CONSUMO
+async function pagar(id) {
+
+  try {
+
+    await fetch(`http://192.168.100.2/api/ordenes/consumos/${id}/pagar`, {
+      method: "PATCH"
+    });
+
+    cargarReserva();
+
+  } catch (error) {
+    console.error("Error al pagar consumo:", error);
+  }
+}
+
+// 🔹 PAGAR RESERVA
+async function pagarReserva(id) {
+
+  try {
+
+    const res = await fetch(`http://192.168.100.2/api/ordenes/reservas/${id}/pagar`, {
+      method: "PUT"
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      alert(data.error);
+      return;
+    }
+
+    alert("Reserva finalizada correctamente");
+
+    cargarReserva();
+
+  } catch (error) {
+    console.error("Error al pagar reserva:", error);
+  }
+}
+
+// 🔹 FORMATO FECHA
+function formatearFecha(fechaISO) {
+  const [fecha] = fechaISO.split('T');
+  const [year, month, day] = fecha.split('-');
+  return `${day}/${month}/${year}`;
+}
+
+// 🔹 MENSAJES
+function mostrarMensaje(texto, tipo) {
+  const mensaje = document.getElementById('mensaje');
+
+  mensaje.classList.remove('d-none', 'alert-success', 'alert-danger');
+  mensaje.classList.add('alert', `alert-${tipo}`);
+  mensaje.textContent = texto;
+}
+
+// 🔹 AUTOLOAD
+cargarReserva();
+
+</script>
+
+</body>
+</html>

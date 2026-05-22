@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>ÓRDENES - HOTEL ROYAL</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+
+<body class="bg-light">
+
+<nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+  <div class="container-fluid">
+    <a class="navbar-brand" href="../index.html">🏨 ROYAL HOTEL</a>
+
+    <div class="collapse navbar-collapse">
+      <ul class="navbar-nav">
+
+        <!-- RESERVAS -->
+        <li class="nav-item">
+          <a class="nav-link" href="crear_reserva.html">CREAR RESERVA</a>
+        </li>
+
+        <li class="nav-item">
+          <a class="nav-link" href="ver_reservas.html">VER RESERVAS</a>
+        </li>
+
+        <li class="nav-item">
+          <a class="nav-link" href="ver_reserva.html">VER RESERVA</a>
+        </li>
+
+        <!-- HUÉSPEDES -->
+        <li class="nav-item">
+          <a class="nav-link" href="agregar_huesped.html">AGREGAR HUÉSPED</a>
+        </li>
+
+        <li class="nav-item">
+          <a class="nav-link" href="ver_huespedes.html">VER HUÉSPEDES</a>
+        </li>
+
+        <!-- CONSUMOS -->
+        <li class="nav-item">
+          <a class="nav-link" href="registrar_consumo.html">REGISTRAR CONSUMO</a>
+        </li>
+
+        <li class="nav-item">
+          <a class="nav-link" href="anular_consumo.html">ANULAR CONSUMO</a>
+        </li>
+
+        <!-- CONSULTA -->
+        <li class="nav-item">
+          <a class="nav-link" href="ver_total.html">VER TOTAL</a>
+        </li>
+
+      </ul>
+    </div>
+  </div>
+</nav>
+
+<div class="container mt-5">
+  <div class="card shadow">
+
+    <div class="card-header text-center bg-primary text-white">
+      <h2>Gestión de Órdenes</h2>
+    </div>
+
+    <div class="card-body">
+
+      <p class="text-center">
+        Administra reservas, huéspedes, consumos y totales del hotel.
+      </p>
+
+      <hr>
+
+      <div class="row">
+
+        <!-- RESERVAS -->
+        <div class="col-md-6">
+          <h5 class="text-center">📄 Reservas</h5>
+
+          <div class="d-grid gap-2">
+            <a href="crear_reserva.html" class="btn btn-outline-success">➕ Crear Reserva</a>
+            <a href="ver_reservas.html" class="btn btn-outline-primary">📋 Ver Todas</a>
+            <a href="ver_reserva.html" class="btn btn-outline-info">🔍 Ver Detalle</a>
+          </div>
+        </div>
+
+        <!-- HUÉSPEDES -->
+        <div class="col-md-6">
+          <h5 class="text-center">👥 Huéspedes</h5>
+
+          <div class="d-grid gap-2">
+            <a href="agregar_huesped.html" class="btn btn-outline-success">➕ Agregar Huésped</a>
+            <a href="ver_huespedes.html" class="btn btn-outline-primary">📋 Ver Huéspedes</a>
+          </div>
+        </div>
+
+      </div>
+
+      <hr>
+
+      <div class="row">
+
+        <!-- CONSUMOS -->
+        <div class="col-md-6">
+          <h5 class="text-center">🛎️ Consumos</h5>
+
+          <div class="d-grid gap-2">
+            <a href="registrar_consumo.html" class="btn btn-outline-success">➕ Registrar Consumo</a>
+            <a href="anular_consumo.html" class="btn btn-outline-warning">❌ Anular Consumo</a>
+          </div>
+        </div>
+
+        <!-- TOTAL -->
+        <div class="col-md-6">
+          <h5 class="text-center">💰 Consulta</h5>
+
+          <div class="d-grid gap-2">
+            <a href="ver_total.html" class="btn btn-outline-info">💵 Ver Total</a>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+    <div class="card-footer text-center text-muted">
+      <small>Microservicio de Órdenes</small>
+    </div>
+
+  </div>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.pyc
+
+# Node
+node_modules/
+
+# Docker
+*.log
+
+# Hadoop / Spark temporales
+tmp/
+temp/
+
+# Vagrant
+.vagrant/
+
+# Sistema
+.DS_Store
+Thumbs.db
+
+# VSCode
+.vscode/
+
+# Datos grandes opcionales
+dashboard/data/streaming/*

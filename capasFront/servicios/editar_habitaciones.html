@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>EDITAR HABITACION</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+  <div class="container-fluid">
+    <a class="navbar-brand" href="index.html">🏪 Almacén</a>
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+    <div class="collapse navbar-collapse" id="navbarNav">
+      <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+        <li class="nav-item"><a class="nav-link" href="ver_habitaciones.html">VER HABITACIONES</a></li>
+        <li class="nav-item"><a class="nav-link" href="ver_servicios.html">VER SERVICIOS</a></li>
+        <li class="nav-item"><a class="nav-link" href="insertar_habitaciones.html">INSERTAR HABITACIONES</a></li>
+        <li class="nav-item"><a class="nav-link" href="insertar_servicios.html">INSERTAR SERVICIOS</a></li>
+        <li class="nav-item"><a class="nav-link" href="consultar_habitaciones.html">CONSULTAR HABITACIONES</a></li>
+        <li class="nav-item"><a class="nav-link" href="consultar_servicios.html">CONSULTAR SERVICIOS</a></li>
+        <li class="nav-item"><a class="nav-link" href="editar_habitaciones.html">EDITAR HABITACIONES</a></li>
+        <li class="nav-item"><a class="nav-link" href="editar_servicios.html">EDITAR SERVICIOS</a></li>
+        <li class="nav-item"><a class="nav-link" href="borrar_habitaciones.html">ELIMINAR HABITACIONES</a></li>
+        <li class="nav-item"><a class="nav-link" href="borrar_servicios.html">ELIMINAR SERVICIOS</a></li>
+      </ul>
+    </div>
+  </div>
+</nav>
+
+
+  <div class="container mt-5">
+    <h2 class="text-center mb-4">EDITAR HABITACIÓN</h2>
+
+    <form id="buscar-form" class="mb-4">
+      <label for="id-buscar" class="form-label">Ingrese el ID de la habitación a editar</label>
+      <input type="number" id="id-buscar" class="form-control mb-3" required>
+      <button type="submit" class="btn btn-primary">Buscar</button>
+    </form>
+
+    <form id="editar-form" class="d-none">
+
+      <div class="mb-3">
+        <label for="numero_habitacion" class="form-label">Número de Habitación</label>
+        <input type="number" id="numero_habitacion" class="form-control" required>
+      </div>
+
+      <div class="mb-3">
+        <label for="piso" class="form-label">Piso</label>
+        <input type="number" id="piso" class="form-control" required>
+      </div>
+
+      <div class="mb-3">
+        <label for="tipo" class="form-label">Tipo</label>
+        <input type="text" id="tipo" class="form-control" required>
+      </div>
+
+      <div class="mb-3">
+        <label for="capacidad" class="form-label">Capacidad</label>
+        <input type="number" id="capacidad" class="form-control" required>
+      </div>
+
+      <div class="mb-3">
+        <label for="precio" class="form-label">Precio</label>
+        <input type="number" step="0.01" id="precio" class="form-control" required>
+      </div>
+
+      <div class="mb-3">
+        <label for="estado" class="form-label">Estado</label>
+        <select id="estado" class="form-control">
+          <option value="disponible">Disponible</option>
+          <option value="ocupado">Ocupado</option>
+          <option value="mantenimiento">Mantenimiento</option>
+        </select>
+      </div>
+
+      <button type="submit" class="btn btn-success">Guardar Cambios</button>
+      <a href="index.html" class="btn btn-secondary ms-2">Volver</a>
+    </form>
+
+    <div id="mensaje" class="alert mt-4 d-none"></div>
+  </div>
+
+  <script>
+    let habitacionId = null;
+
+    document.getElementById('buscar-form').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const id = document.getElementById('id-buscar').value;
+
+      fetch(`http://192.168.100.2/api/habitaciones/${id}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.error) throw new Error(data.error);
+          habitacionId = data.id;
+          document.getElementById('numero_habitacion').value = data.numero_habitacion;
+          document.getElementById('piso').value = data.piso;
+          document.getElementById('tipo').value = data.tipo;
+          document.getElementById('capacidad').value = data.capacidad;
+          document.getElementById('precio').value = data.precio;
+          document.getElementById('estado').value = data.estado;//En caso de que el recepcionista haga la reservación para el cliente o simplemente cancelen la reservación.
+
+          document.getElementById('editar-form').classList.remove('d-none');
+        })
+        .catch(err => {
+          const mensaje = document.getElementById('mensaje');
+          mensaje.classList.remove('d-none', 'alert-success');
+          mensaje.classList.add('alert', 'alert-danger');
+          mensaje.textContent = 'Habitación no encontrada';
+        });
+    });
+
+    document.getElementById('editar-form').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const numero_habitacion = document.getElementById('numero_habitacion').value;
+      const piso = document.getElementById('piso').value;
+      const tipo = document.getElementById('tipo').value;
+      const capacidad = document.getElementById('capacidad').value;
+      const precio = document.getElementById('precio').value;
+      const estado = document.getElementById('estado').value;
+
+      fetch(`http://192.168.100.2/api/habitaciones/${habitacionId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ numero_habitacion, piso, tipo, capacidad, precio, estado })
+      })
+      .then(res => res.json())
+      .then(data => {
+        const mensaje = document.getElementById('mensaje');
+        mensaje.classList.remove('d-none', 'alert-danger');
+        mensaje.classList.add('alert', 'alert-success');
+        mensaje.textContent = 'La habitación ha sido actualizada exitosamente';
+      })
+      .catch(err => {
+        const mensaje = document.getElementById('mensaje');
+        mensaje.classList.remove('d-none', 'alert-success');
+        mensaje.classList.add('alert', 'alert-danger');
+        mensaje.textContent = 'Error al actualizar habitación';
+      });
+    });
+  </script>
+</body>
+</html>

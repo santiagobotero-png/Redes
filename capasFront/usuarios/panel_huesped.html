@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8">
+  <title>Panel de Huésped</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+
+<body>
+
+<nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+  <div class="container-fluid">
+    <a class="navbar-brand" >🏨 PANEL HUÉSPED</a>
+  </div>
+</nav>
+
+<div class="container mt-5">
+
+    <h3 class="mt-5">Mis Reservas</h3>
+
+    <h5 class="text-success mt-3">Activas</h5>
+    <div id="reservas-activas" class="row"></div>
+
+    <h5 class="text-primary mt-3">Finalizadas</h5>
+    <div id="reservas-finalizadas" class="row"></div>
+
+    <h5 class="text-danger mt-3">Canceladas</h5>
+    <div id="reservas-canceladas" class="row"></div>
+
+
+  <div id="mensaje" class="alert mt-3 d-none"></div>
+  <div class="text-center mt-4">
+
+    <button class="btn btn-danger" onclick="cerrarSesion()">
+    ⏻ Cerrar sesión
+    </button>
+
+  </div>
+
+
+</div>
+
+<script>
+
+const usuario = JSON.parse(localStorage.getItem("usuario"));
+
+if (!usuario) {
+    window.location.href = "login.html";
+}
+
+const ID_HUESPED = usuario.id;
+
+async function cargarPanel() {
+  try {
+
+    const res = await fetch(`http://192.168.100.2/api/ordenes/huesped/${ID_HUESPED}/resumen`);
+    const data = await res.json();
+
+    if (data.error) throw new Error(data.error);
+
+    // limpiar contenedores
+    document.getElementById('reservas-activas').innerHTML = '';
+    document.getElementById('reservas-finalizadas').innerHTML = '';
+    document.getElementById('reservas-canceladas').innerHTML = '';
+
+    data.forEach(r => {
+
+      const card = crearCardReserva(r);
+
+      if (r.estado === 'activa') {
+        document.getElementById('reservas-activas').appendChild(card);
+      } else if (r.estado === 'finalizada') {
+        document.getElementById('reservas-finalizadas').appendChild(card);
+      } else if (r.estado === 'cancelada') {
+        document.getElementById('reservas-canceladas').appendChild(card);
+      }
+
+    });
+
+  } catch (error) {
+    console.error(error);
+    mostrarMensaje("Error al cargar panel", "danger");
+  }
+}
+
+function crearCardReserva(r) {
+
+  const col = document.createElement('div');
+  col.className = "col-md-4";
+
+  col.innerHTML = `
+    <div class="card mb-3">
+      <div class="card-body">
+
+        <h5 class="card-title">Reserva #${r.id_reserva}</h5>
+
+        <p><strong>Habitación:</strong> ${r.id_habitacion}</p>
+
+        <p>
+          ${formatearFecha(r.fecha_inicio)} → 
+          ${formatearFecha(r.fecha_fin)}
+        </p>
+
+        <p><strong>Total:</strong> $${r.total}</p>
+
+        <p class="text-muted">
+          Habitación: $${r.total_habitacion} <br>
+          Servicios: $${r.total_servicios}
+        </p>
+
+        <a href="ver_reserva.html?id=${r.id_reserva}" class="btn btn-outline-primary btn-sm">
+          Ver detalle
+        </a>
+
+      </div>
+    </div>
+  `;
+
+  return col;
+}
+
+function formatearFecha(fechaISO) {
+  const [fecha] = fechaISO.split('T');
+  const [year, month, day] = fecha.split('-');
+  return `${day}/${month}/${year}`;
+}
+
+function mostrarMensaje(texto, tipo) {
+  const mensaje = document.getElementById('mensaje');
+
+  mensaje.classList.remove('d-none', 'alert-success', 'alert-danger');
+  mensaje.classList.add('alert', `alert-${tipo}`);
+  mensaje.textContent = texto;
+}
+
+function cerrarSesion(){
+  localStorage.clear();
+  window.location.href = "../login.html";
+}
+
+// cargar automáticamente
+cargarPanel();
+
+</script>
+
+</body>
+</html>

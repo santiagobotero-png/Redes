@@ -1,0 +1,6 @@
+id_consumo,id_reserva,id_huesped_reserva,id_servicio,nombre_servicio,precio_aplicado,cantidad,total,timestamp
+1,2843,5124,10,Servicio 10,176.13,3,528.39,2026-05-15 19:25:18
+2,874,1405,2,Servicio 2,103.49,2,206.98,2026-05-15 19:25:18
+3,55,824,17,Servicio 17,19.77,2,39.54,2026-05-15 19:25:18
+4,1711,5946,1,Servicio 1,89.57,5,447.84999999999997,2026-05-15 19:25:18
+5,2172,713,5,Servicio 5,101.85,1,101.85,2026-05-15 19:25:18

@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>VER RESERVA</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+
+<body>
+
+<nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+  <div class="container-fluid">
+    <a class="navbar-brand" href="index.html">🏨 ÓRDENES</a>
+  </div>
+</nav>
+
+<div class="container mt-5">
+
+  <h2 class="text-center mb-4">Consultar Reserva</h2>
+
+  <!-- 🔍 BUSCAR -->
+  <form id="buscar-form" class="mb-4">
+    <label class="form-label">ID de Reserva</label>
+    <input type="number" id="id_reserva" class="form-control mb-3" required>
+
+    <button class="btn btn-primary">Buscar</button>
+    <a href="index.html" class="btn btn-secondary ms-2">Volver</a>
+  </form>
+
+  <!-- 📄 DATOS RESERVA -->
+  <div id="reserva-info" class="card mb-4 d-none">
+    <div class="card-header bg-primary text-white">
+      Datos de la Reserva
+    </div>
+    <div class="card-body">
+      <p><strong>ID:</strong> <span id="r_id"></span></p>
+      <p><strong>Cliente:</strong> <span id="r_cliente"></span></p>
+      <p><strong>Habitación:</strong> <span id="r_habitacion"></span></p>
+      <p><strong>Fecha Inicio:</strong> <span id="r_inicio"></span></p>
+      <p><strong>Fecha Fin:</strong> <span id="r_fin"></span></p>
+    </div>
+  </div>
+
+  <!-- 👥 HUESPEDES -->
+  <div id="huespedes-section" class="card mb-4 d-none">
+    <div class="card-header bg-secondary text-white">
+      Huéspedes
+    </div>
+    <div class="card-body">
+      <ul id="lista-huespedes" class="list-group"></ul>
+    </div>
+  </div>
+
+  <!-- 🛎️ CONSUMOS -->
+  <div id="consumos-section" class="card mb-4 d-none">
+    <div class="card-header bg-success text-white">
+      Consumos
+    </div>
+    <div class="card-body">
+
+      <table class="table table-bordered">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Servicio</th>
+            <th>Cantidad</th>
+            <th>Precio</th>
+            <th>Estado</th>
+          </tr>
+        </thead>
+        <tbody id="tabla-consumos"></tbody>
+      </table>
+
+    </div>
+  </div>
+
+  <div id="mensaje" class="alert d-none"></div>
+
+</div>
+
+<script>
+
+document.getElementById('buscar-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+
+  const id = document.getElementById('id_reserva').value;
+
+  try {
+
+    // 🔹 RESERVA
+    const resReserva = await fetch(`http://192.168.100.2/api/ordenes/reservas/${id}`);
+    const reserva = await resReserva.json();
+
+    if (reserva.error) throw new Error(reserva.error);
+
+    mostrarReserva(reserva);
+
+    // 🔹 HUESPEDES
+    const resHuespedes = await fetch(`http://192.168.100.2/api/ordenes/reservas/${id}/huespedes`);
+    const huespedes = await resHuespedes.json();
+    mostrarHuespedes(huespedes);
+
+    // 🔹 CONSUMOS
+    const resConsumos = await fetch(`http://192.168.100.2/api/ordenes/reservas/${id}/consumos`);
+    const consumos = await resConsumos.json();
+    mostrarConsumos(consumos);
+
+  } catch (error) {
+    mostrarMensaje("Reserva no encontrada", "danger");
+    ocultarTodo();
+  }
+
+});
+
+function mostrarReserva(r) {
+  document.getElementById('reserva-info').classList.remove('d-none');
+
+  document.getElementById('r_id').textContent = r.id_reserva;
+  document.getElementById('r_cliente').textContent = r.id_cliente;
+  document.getElementById('r_habitacion').textContent = r.id_habitacion;
+  document.getElementById('r_inicio').textContent = formatearFecha(r.fecha_inicio);
+  document.getElementById('r_fin').textContent = formatearFecha(r.fecha_fin);
+}
+
+function mostrarHuespedes(lista) {
+  const ul = document.getElementById('lista-huespedes');
+  ul.innerHTML = '';
+
+  document.getElementById('huespedes-section').classList.remove('d-none');
+
+  lista.forEach(h => {
+    const li = document.createElement('li');
+    li.classList.add('list-group-item');
+    li.textContent = `Cliente ${h.id_cliente} (${h.rol})`;
+    ul.appendChild(li);
+  });
+}
+
+function mostrarConsumos(lista) {
+  const tbody = document.getElementById('tabla-consumos');
+  tbody.innerHTML = '';
+
+  document.getElementById('consumos-section').classList.remove('d-none');
+
+  lista.forEach(c => {
+    const row = document.createElement('tr');
+
+    row.innerHTML = `
+      <td>${c.id_consumo}</td>
+      <td>${c.nombre_servicio}</td>
+      <td>${c.cantidad}</td>
+      <td>$${c.precio_aplicado}</td>
+      <td>${c.anulado ? 'ANULADO' : 'ACTIVO'}</td>
+    `;
+
+    tbody.appendChild(row);
+  });
+}
+
+function ocultarTodo() {
+  document.getElementById('reserva-info').classList.add('d-none');
+  document.getElementById('huespedes-section').classList.add('d-none');
+  document.getElementById('consumos-section').classList.add('d-none');
+}
+
+function mostrarMensaje(texto, tipo) {
+  const mensaje = document.getElementById('mensaje');
+
+  mensaje.classList.remove('d-none', 'alert-success', 'alert-danger');
+  mensaje.classList.add('alert', `alert-${tipo}`);
+  mensaje.textContent = texto;
+}
+
+function formatearFecha(fechaISO) {
+  if (!fechaISO) return '';
+
+  const [fecha] = fechaISO.split('T'); // "2026-04-02"
+  const [year, month, day] = fecha.split('-');
+
+  return `${day}/${month}/${year}`; // "02/04/2026"
+}
+	
+</script>
+
+</body>
+</html>

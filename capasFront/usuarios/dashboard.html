@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Panel Admin</title>
+
+  <link rel="stylesheet" href="css/style.css">
+
+  <!-- Bootstrap -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+
+<body>
+
+<div class="container">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <h2>Admin</h2>
+
+    <button onclick="mostrarVista('dashboard')">Dashboard</button>
+    <button onclick="mostrarVista('usuarios')">Usuarios</button>
+    <button onclick="abrirAnalitica()">Analítica Big Data</button>
+    <button onclick="irIndex()">Inicio</button>
+    <button onclick="cerrarSesion()">Cerrar sesión</button>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main">
+
+    <!-- ================= DASHBOARD ================= -->
+    <div id="vista-dashboard">
+
+      <h1>Dashboard</h1>
+
+      <!-- CARDS -->
+      <div class="cards">
+        <div class="card">
+          <h3>Reservas</h3>
+          <p id="total-reservas">0</p>
+        </div>
+
+        <div class="card">
+          <h3>Activas</h3>
+          <p id="total-activas">0</p>
+        </div>
+
+        <div class="card">
+          <h3>Servicios populares</h3>
+          <p id="total-servicios">0</p>
+        </div>
+
+        <div class="card">
+          <h3>Recientes</h3>
+          <p id="total-recientes">0</p>
+        </div>
+      </div>
+
+      <!-- GRÁFICAS -->
+      <div class="charts">
+
+        <div class="chart-box">
+          <h3>Reservas por día</h3>
+          <canvas id="chartReservas"></canvas>
+        </div>
+
+        <div class="chart-box">
+          <h3>Servicios más usados</h3>
+          <canvas id="chartServicios"></canvas>
+        </div>
+
+      </div>
+
+      <!-- TABLA -->
+      <div class="table-container">
+        <h2>Reservas recientes</h2>
+
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Cliente</th>
+              <th>Estado</th>
+            </tr>
+          </thead>
+
+          <tbody id="tabla-reservas"></tbody>
+        </table>
+      </div>
+
+    </div>
+
+    <!-- ================= USUARIOS ================= -->
+    <div id="vista-usuarios" style="display:none;">
+
+      <h1>Usuarios</h1>
+
+      <button class="btn btn-success mb-3" onclick="mostrarFormulario()">
+        Crear Usuario
+      </button>
+
+      <table class="table table-bordered table-hover">
+        <thead class="table-dark">
+          <tr>
+            <th>ID</th>
+            <th>Usuario</th>
+            <th>Email</th>
+            <th>Nombre</th>
+            <th>Rol</th>
+            <th>Acciones</th>
+          </tr>
+        </thead>
+
+        <tbody id="tablaUsuarios"></tbody>
+      </table>
+
+    </div>
+
+  </main>
+
+</div>
+
+<!-- ================= MODAL ================= -->
+<div class="modal fade" id="modalUsuario" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+
+      <div class="modal-header">
+        <h5 class="modal-title">Usuario</h5>
+        <button class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+
+      <div class="modal-body">
+        <input id="username" class="form-control mb-2" placeholder="Usuario">
+        <input id="password" class="form-control mb-2" placeholder="Password">
+        <input id="email" class="form-control mb-2" placeholder="Email">
+        <input id="nombre" class="form-control mb-2" placeholder="Nombre completo">
+
+        <select id="rol" class="form-control mb-2">
+          <option value="ADMIN">ADMIN</option>
+          <option value="RECEPCIONISTA">RECEPCIONISTA</option>
+          <option value="HUESPED">HUESPED</option>
+        </select>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button class="btn btn-success" onclick="crearUsuario()">Guardar</button>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- SCRIPTS -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="js/admin.js"></script>
+
+<script>
+
+let chartReservas;
+let chartServicios;
+
+/* =========================
+   CAMBIO DE VISTA
+========================= */
+function mostrarVista(vista) {
+
+  document.getElementById("vista-dashboard").style.display = "none";
+  document.getElementById("vista-usuarios").style.display = "none";
+
+  if (vista === "dashboard") {
+    document.getElementById("vista-dashboard").style.display = "block";
+    cargarDashboard();
+  }
+
+  if (vista === "usuarios") {
+    document.getElementById("vista-usuarios").style.display = "block";
+    cargarUsuarios();
+  }
+}
+
+/* =========================
+   DASHBOARD
+========================= */
+async function cargarDashboard() {
+
+  const res = await fetch("http://192.168.100.2/api/ordenes/dashboard");
+  const data = await res.json();
+
+  // CARDS
+  document.getElementById("total-reservas").textContent = data.totales.reservas;
+  document.getElementById("total-activas").textContent = data.totales.activas;
+  document.getElementById("total-servicios").textContent = data.servicios_populares.length;
+  document.getElementById("total-recientes").textContent = data.reservas_recientes.length;
+
+  // GRÁFICA RESERVAS
+  const labelsReservas = data.reservas_por_dia.map(r =>
+    new Date(r.dia).toLocaleDateString('es-CO')
+  );
+
+  const valoresReservas = data.reservas_por_dia.map(r => r.total);
+
+  if (chartReservas) chartReservas.destroy();
+
+  chartReservas = new Chart(document.getElementById('chartReservas'), {
+    type: 'line',
+    data: {
+      labels: labelsReservas,
+      datasets: [{
+        label: 'Reservas',
+        data: valoresReservas,
+        borderWidth: 2
+      }]
+    }
+  });
+
+  // GRÁFICA SERVICIOS
+  const labelsServicios = data.servicios_populares.map(s => s.nombre_servicio);
+  const valoresServicios = data.servicios_populares.map(s => s.total);
+
+  if (chartServicios) chartServicios.destroy();
+
+  chartServicios = new Chart(document.getElementById('chartServicios'), {
+    type: 'bar',
+    data: {
+      labels: labelsServicios,
+      datasets: [{
+        label: 'Cantidad',
+        data: valoresServicios,
+        borderWidth: 2
+      }]
+    }
+  });
+
+  // TABLA
+  const tbody = document.getElementById("tabla-reservas");
+  tbody.innerHTML = "";
+
+  data.reservas_recientes.forEach(r => {
+    tbody.innerHTML += `
+      <tr>
+        <td>${r.id_reserva}</td>
+        <td>${r.id_cliente}</td>
+        <td>${r.estado}</td>
+      </tr>
+    `;
+  });
+}
+
+/* =========================
+   SESIÓN
+========================= */
+function cerrarSesion(){
+  localStorage.clear();
+  window.location.href = "login.html";
+}
+
+function irIndex() {
+  window.location.href = "../index.html";
+}
+
+function abrirAnalitica() {
+  window.open(
+    "http://192.168.100.2:8501",
+    "_blank"
+  );
+}
+
+
+// Cargar por defecto
+cargarDashboard();
+
+</script>
+
+</body>
+</html>

@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>VER SERVICIOS</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+  <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+  <div class="container-fluid">
+    <a class="navbar-brand" href="index.html">🏪 Almacén</a>
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+    <div class="collapse navbar-collapse" id="navbarNav">
+      <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+        <li class="nav-item"><a class="nav-link" href="ver_habitaciones.html">VER HABITACIONES</a></li>
+        <li class="nav-item"><a class="nav-link" href="ver_servicios.html">VER SERVICIOS</a></li>
+        <li class="nav-item"><a class="nav-link" href="insertar_habitaciones.html">INSERTAR HABITACIONES</a></li>
+        <li class="nav-item"><a class="nav-link" href="insertar_servicios.html">INSERTAR SERVICIOS</a></li>
+        <li class="nav-item"><a class="nav-link" href="consultar_habitaciones.html">CONSULTAR HABITACIONES</a></li>
+        <li class="nav-item"><a class="nav-link" href="consultar_servicios.html">CONSULTAR SERVICIOS</a></li>
+        <li class="nav-item"><a class="nav-link" href="editar_habitaciones.html">EDITAR HABITACIONES</a></li>
+        <li class="nav-item"><a class="nav-link" href="editar_servicios.html">EDITAR SERVICIOS</a></li>
+        <li class="nav-item"><a class="nav-link" href="borrar_habitaciones.html">ELIMINAR HABITACIONES</a></li>
+        <li class="nav-item"><a class="nav-link" href="borrar_servicios.html">ELIMINAR SERVICIOS</a></li>
+      </ul>
+    </div>
+  </div>
+</nav>
+
+  <div class="container mt-5">
+    <h2 class="text-center mb-4">Lista de Servicios</h2>
+    <table class="table table-striped table-bordered">
+      <thead class="table-dark">
+        <tr>
+          <th>ID</th>
+          <th>Nombre</th>
+          <th>Descripcion</th>
+          <th>Precio</th>
+          <th>Disponibilidad</th>
+        </tr>
+      </thead>
+      <tbody id="servicios-table-body"></tbody>
+    </table>
+    <div class="text-center mt-4">
+      <a href="index.html" class="btn btn-secondary">VOLVER</a>
+    </div>
+  </div>
+
+  <script>
+    fetch('http://192.168.100.2/api/servicios')
+      .then(response => response.json())
+      .then(data => {
+        const tableBody = document.getElementById('servicios-table-body');
+        data.forEach(s => {
+          const row = document.createElement('tr');
+          row.innerHTML = `
+            <td>${s.id}</td>
+            <td>${s.nombre}</td>
+            <td>${s.descripcion}</td>
+            <td>$${s.precio}</td>
+            <td>${s.disponibilidad || 'no'}</td>
+          `;
+          tableBody.appendChild(row);
+        });
+      })
+      .catch(error => {
+        console.error('Error:', error);
+      });
+  </script>
+</body>
+</html>

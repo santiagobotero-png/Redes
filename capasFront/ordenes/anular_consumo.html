@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>ANULAR CONSUMO</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+
+<body>
+
+<nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+  <div class="container-fluid">
+    <a class="navbar-brand" href="index.html">🏨 ÓRDENES</a>
+  </div>
+</nav>
+
+<div class="container mt-5">
+
+  <h2 class="text-center mb-4">Anular Consumo</h2>
+
+  <form id="anular-form">
+
+    <div class="mb-3">
+      <label class="form-label">ID Consumo</label>
+      <input type="number" id="id_consumo" class="form-control" required>
+    </div>
+
+    <button type="submit" class="btn btn-danger">Anular</button>
+    <a href="index.html" class="btn btn-secondary ms-2">Volver</a>
+
+  </form>
+
+  <div id="mensaje" class="alert mt-4 d-none"></div>
+
+</div>
+
+<script>
+
+document.getElementById('anular-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+
+  const id = document.getElementById('id_consumo').value;
+
+  // ⚠️ Confirmación antes de ejecutar
+  const confirmar = confirm(`¿Seguro que deseas anular el consumo ${id}?`);
+
+  if (!confirmar) return;
+
+  try {
+
+    const res = await fetch(`http://192.168.100.2/api/ordenes/consumos/${id}/anular`, {
+      method: 'PATCH'
+    });
+
+    const data = await res.json();
+
+    if (data.error) throw new Error(data.error);
+
+    mostrarMensaje("Consumo anulado correctamente", "success");
+
+    document.getElementById('anular-form').reset();
+
+  } catch (error) {
+    console.error(error);
+    mostrarMensaje("Error al anular consumo", "danger");
+  }
+
+});
+
+function mostrarMensaje(texto, tipo) {
+  const mensaje = document.getElementById('mensaje');
+
+  mensaje.classList.remove('d-none', 'alert-success', 'alert-danger');
+  mensaje.classList.add('alert', `alert-${tipo}`);
+  mensaje.textContent = texto;
+}
+
+</script>
+
+</body>
+</html>

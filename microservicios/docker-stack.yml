@@ -1,0 +1,178 @@
+version: "3.8"
+
+services:
+
+  # =========================
+  # MYSQL - USUARIOS
+  # =========================
+  mysql_usuarios:
+    image: santiagobd/mysql-usuarios:latest
+    environment:
+      MYSQL_ROOT_PASSWORD: 1234
+      MYSQL_DATABASE: hotel_usuarios_db
+    volumes:
+      - usuarios_data:/var/lib/mysql
+    networks:
+      - hotel-network
+    deploy:
+      replicas: 1
+      placement:
+        constraints: [node.role == manager]
+      restart_policy:
+        condition: on-failure
+
+  # =========================
+  # MYSQL - SERVICIOS
+  # =========================
+  mysql_servicios:
+    image: santiagobd/mysql-servicios:latest
+    environment:
+      MYSQL_ROOT_PASSWORD: 1234
+      MYSQL_DATABASE: hotelroyal
+    volumes:
+      - servicios_data:/var/lib/mysql
+    networks:
+      - hotel-network
+    deploy:
+      replicas: 1
+      placement:
+        constraints: [node.role == manager]
+      restart_policy:
+        condition: on-failure
+
+  # =========================
+  # MYSQL - ORDENES
+  # =========================
+  mysql_ordenes:
+    image: santiagobd/mysql-ordenes:latest
+    environment:
+      MYSQL_ROOT_PASSWORD: 1234
+      MYSQL_DATABASE: hotel_ordenes_db
+    volumes:
+      - ordenes_data:/var/lib/mysql
+    networks:
+      - hotel-network
+    deploy:
+      replicas: 1
+      placement:
+        constraints: [node.role == manager]
+      restart_policy:
+        condition: on-failure
+
+  # =========================
+  # USUARIOS
+  # =========================
+  usuarios:
+    image: santiagobd/usuarios-service:latest
+    environment:
+      PORT: 3000
+      DB_HOST: mysql_usuarios
+      DB_USER: root
+      DB_PASSWORD: 1234
+      DB_NAME: hotel_usuarios_db
+    networks:
+      - hotel-network
+    deploy:
+      replicas: 3
+      restart_policy:
+        condition: on-failure
+      update_config:
+        parallelism: 1
+        delay: 5s
+
+  # =========================
+  # SERVICIOS
+  # =========================
+  servicios:
+    image: santiagobd/servicios-service:latest
+    environment:
+      PORT: 3000
+      DB_HOST: mysql_servicios
+      DB_USER: root
+      DB_PASSWORD: 1234
+      DB_NAME: hotelroyal
+    networks:
+      - hotel-network
+    deploy:
+      replicas: 3
+      restart_policy:
+        condition: on-failure
+      update_config:
+        parallelism: 1
+        delay: 5s
+
+  # =========================
+  # ORDENES
+  # =========================
+  ordenes:
+    image: santiagobd/ordenes-service:latest
+    environment:
+      PORT: 3000
+      DB_HOST: mysql_ordenes
+      DB_USER: root
+      DB_PASSWORD: 1234
+      DB_NAME: hotel_ordenes_db
+      USUARIOS_SERVICE: http://usuarios:3000/api/usuarios
+      HABITACIONES_SERVICE: http://servicios:3000/api/habitaciones
+      SERVICIOS_SERVICE: http://servicios:3000/api/servicios
+    networks:
+      - hotel-network
+    deploy:
+      replicas: 3
+      restart_policy:
+        condition: on-failure
+      update_config:
+        parallelism: 1
+        delay: 5s
+
+
+  # =========================
+  # FRONTEND
+  # =========================
+  frontend:
+    image: santiagobd/frontend-hoteles:1.4
+
+    ports:
+      - "8085:80"
+
+    networks:
+      - hotel-network
+
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+
+
+  # =========================
+  # HAPROXY
+  # =========================
+  haproxy:
+    image: santiagobd/haproxy:latest
+    ports:
+      - "80:80"
+      - "8404:8404"
+    networks:
+      - hotel-network
+    deploy:
+      replicas: 1
+      placement:
+        constraints: [node.role == manager]
+      restart_policy:
+        condition: on-failure
+
+# =========================
+# VOLUMENES
+# =========================
+volumes:
+  usuarios_data:
+  servicios_data:
+  ordenes_data:
+
+# =========================
+# RED
+# =========================
+networks:
+  hotel-network:
+    driver: overlay
+    attachable: true
