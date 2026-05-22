@@ -192,8 +192,8 @@ async function cargarDashboard() {
   const data = await res.json();
 
   // CARDS
-  document.getElementById("total-reservas").textContent = data.totales.reservas;
-  document.getElementById("total-activas").textContent = data.totales.activas;
+  document.getElementById("total-reservas").textContent = data.total_reservas;
+  document.getElementById("total-activas").textContent = data.activas;
   document.getElementById("total-servicios").textContent = data.servicios_populares.length;
   document.getElementById("total-recientes").textContent = data.reservas_recientes.length;
 

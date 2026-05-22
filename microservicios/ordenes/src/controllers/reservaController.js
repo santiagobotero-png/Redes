@@ -17,11 +17,34 @@ const SERVICIOS_SERVICE = process.env.SERVICIOS_SERVICE;
 
 router.get('/dashboard', async (req, res) => {
   try {
-    const totales = await reservasModel.obtenerTotalesReservas();
-    res.json(totales);
+
+    const totales =
+      await reservasModel.obtenerTotalesReservas();
+
+    const servicios_populares =
+      await reservasModel.obtenerServiciosPopulares();
+
+    const resumen_huespedes =
+      await reservasModel.obtenerResumenPorHuesped();
+
+    const reservas_recientes =
+      await reservasModel.obtenerReservas();
+
+    res.json({
+      totales,
+      servicios_populares,
+      resumen_huespedes,
+      reservas_recientes
+    });
+
   } catch (error) {
+
     console.error(error);
-    res.status(500).json({ error: "Error al obtener dashboard" });
+
+    res.status(500).json({
+      error: "Error al obtener dashboard"
+    });
+
   }
 });
 
@@ -109,69 +132,123 @@ router.get('/reservas/:id', async (req, res) => {
 router.post('/reservas', async (req, res) => {
   try {
 
-    const { id_cliente, id_habitacion, fecha_inicio, fecha_fin } = req.body;
-
-    /* VALIDACIONES */
-    if (!fecha_inicio || !fecha_fin) {
-      return res.status(400).json({ error: "Fechas obligatorias" });
-    }
-
-    if (fecha_inicio >= fecha_fin) {
-      return res.status(400).json({ error: "Fechas inválidas" });
-    }
-
-    /* VALIDAR CLIENTE */
-    try {
-      await axios.get(`${USUARIOS_SERVICE}/${id_cliente}`);
-    } catch {
-      return res.status(404).json({ error: "Cliente no encontrado" });
-    }
-
-    /* VALIDAR HABITACIÓN */
-    try {
-      await axios.get(`${HABITACIONES_SERVICE}/${id_habitacion}`);
-    } catch {
-      return res.status(404).json({ error: "Habitación no encontrada" });
-    }
-
-    /* VERIFICAR DISPONIBILIDAD */
-    const hayConflicto = await reservasModel.verificarConflictoReserva(
-      id_habitacion,
-      fecha_inicio,
-      fecha_fin
-    );
-
-    if (hayConflicto) {
-      return res.status(400).json({
-        error: "La habitación ya está reservada en ese rango de fechas"
-      });
-    }
-
-    /* CREAR RESERVA */
-    const idReserva = await reservasModel.crearReserva(
+    const {
       id_cliente,
       id_habitacion,
       fecha_inicio,
       fecha_fin
-    );
+    } = req.body;
 
-    /* 🔥 CREAR TITULAR AUTOMÁTICO */
+    /* VALIDACIONES */
+    if (!fecha_inicio || !fecha_fin) {
+      return res.status(400).json({
+        error: "Fechas obligatorias"
+      });
+    }
+
+    if (fecha_inicio >= fecha_fin) {
+      return res.status(400).json({
+        error: "Fechas inválidas"
+      });
+    }
+
+    /* VALIDAR CLIENTE */
+    try {
+
+      const responseCliente =
+        await axios.get(
+          `${USUARIOS_SERVICE}/${id_cliente}`
+        );
+
+      if (!responseCliente.data.encontrado) {
+        return res.status(404).json({
+          error: "Cliente no encontrado"
+        });
+      }
+
+    } catch {
+
+      return res.status(404).json({
+        error: "Cliente no encontrado"
+      });
+
+    }
+
+    /* VALIDAR HABITACIÓN */
+    try {
+
+      const responseHabitacion =
+        await axios.get(
+          `${HABITACIONES_SERVICE}/${id_habitacion}`
+        );
+
+      if (!responseHabitacion.data.encontrado) {
+        return res.status(404).json({
+          error: "Habitación no encontrada"
+        });
+      }
+
+    } catch {
+
+      return res.status(404).json({
+        error: "Habitación no encontrada"
+      });
+
+    }
+
+    /* DISPONIBILIDAD */
+    const hayConflicto =
+      await reservasModel.verificarConflictoReserva(
+        id_habitacion,
+        fecha_inicio,
+        fecha_fin
+      );
+
+    if (hayConflicto) {
+
+      return res.status(400).json({
+        error:
+          "La habitación ya está reservada en ese rango de fechas"
+      });
+
+    }
+
+    /* CREAR RESERVA */
+    const idReserva =
+      await reservasModel.crearReserva(
+        id_cliente,
+        id_habitacion,
+        fecha_inicio,
+        fecha_fin
+      );
+
+    /* TITULAR */
     await reservasModel.agregarHuespedReserva(
       idReserva,
       id_cliente,
       'titular'
     );
 
+    /* CALCULAR TOTAL */
+    const total =
+      await reservasModel.calcularTotalReserva(
+        idReserva
+      );
+
     res.status(201).json({
       mensaje: "Reserva creada correctamente",
-      id_reserva: idReserva
+      id_reserva: idReserva,
+      total
     });
 
   } catch (error) {
+
     console.error(error);
+
     res.status(500).json({
       error: "Error al crear reserva"
     });
+
   }
 });
 
@@ -237,19 +314,29 @@ router.put('/reservas/:id/cancelar', async (req, res) => {
 
 router.delete('/reservas/:id', async (req, res) => {
   try {
+
     const reserva = await reservasModel.obtenerReservaPorId(req.params.id);
 
     if (!reserva) {
-      return res.status(404).json({ error: "Reserva no encontrada" });
+      return res.status(404).json({
+        error: "Reserva no encontrada"
+      });
     }
 
     await reservasModel.eliminarReserva(req.params.id);
 
-    res.json({ mensaje: "Reserva eliminada" });
+    res.json({
+      mensaje: "Reserva eliminada"
+    });
 
   } catch (error) {
+
     console.error(error);
-    res.status(500).json({ error: "Error al eliminar reserva" });
+
+    res.status(500).json({
+      error: "Error al eliminar reserva"
+    });
+
   }
 });
 
@@ -407,7 +494,7 @@ router.get('/reservas/:id/total', async (req, res) => {
   try {
 
     const total = await reservasModel.calcularTotalReserva(req.params.id);
-
+    
     res.json({
       id_reserva: req.params.id,
       total

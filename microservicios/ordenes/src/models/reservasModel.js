@@ -1,4 +1,6 @@
 const mysql = require('mysql2/promise');
+const axios = require('axios');
+
 
 const pool = mysql.createPool({
   host: process.env.DB_HOST,
@@ -9,6 +11,7 @@ const pool = mysql.createPool({
   connectionLimit: 10,
   queueLimit: 0
 });
+
 
 /* ======================================
    DASHBOARD
@@ -81,7 +84,12 @@ async function obtenerReservaPorId(id_reserva) {
   return rows[0];
 }
 
-async function verificarConflictoReserva(id_habitacion, fecha_inicio, fecha_fin, id_reserva = null) {
+async function verificarConflictoReserva(
+  id_habitacion,
+  fecha_inicio,
+  fecha_fin,
+  id_reserva = null
+) {
 
   let query = `
     SELECT id_reserva
@@ -95,14 +103,10 @@ async function verificarConflictoReserva(id_habitacion, fecha_inicio, fecha_fin,
 
   if (id_reserva) {
     query += ` AND id_reserva != ?`;
+    params.push(id_reserva);
   }
 
-  console.log("QUERY:", query);
-  console.log("PARAMS:", params);
-
   const [rows] = await pool.query(query, params);
-
-  console.log("RESULT:", rows);
 
   return rows.length > 0;
 }
@@ -234,51 +238,92 @@ async function pagarConsumoServicio(id_consumo) {
 
 async function calcularTotalReserva(id_reserva) {
 
+  // reserva
   const [reservaRows] = await pool.query(`
-    SELECT id_habitacion
+    SELECT id_habitacion, fecha_inicio, fecha_fin
     FROM reservas
     WHERE id_reserva = ?
   `, [id_reserva]);
 
   const reserva = reservaRows[0];
 
-  // noches calculadas por MySQL
+  if (!reserva) {
+    throw new Error('Reserva no encontrada');
+  }
+
+  // noches
   const [diasRows] = await pool.query(`
     SELECT DATEDIFF(fecha_fin, fecha_inicio) AS noches
     FROM reservas
     WHERE id_reserva = ?
   `, [id_reserva]);
 
-  const noches = diasRows[0].noches;
+  if (diasRows.length === 0) {
+    throw new Error('Error calculando noches');
+  }
 
-  // precio habitación
-  const [habitacionRows] = await pool.query(`
-    SELECT precio
-    FROM hotelroyal.habitaciones
-    WHERE id = ?
-  `, [reserva.id_habitacion]);
+  const noches = Number(diasRows[0].noches) || 0;
 
-  const precioHabitacion = Number(habitacionRows[0]?.precio) || 0;
+  console.log("NOCHES:", noches);
 
-  const totalHabitacion = precioHabitacion * noches;
+  // llamada HTTP
+  const url =
+    `${process.env.HABITACIONES_SERVICE}/${reserva.id_habitacion}`;
+
+  console.log("URL HABITACION:", url);
+
+  const response = await axios.get(url);
+
+  console.log("RESPUESTA:", response.data);
+
+  const habitacion = response.data.habitacion;
+
+  if (!habitacion) {
+    throw new Error('Habitación no encontrada');
+  }
+
+  const precioHabitacion =
+    Number(habitacion.precio) || 0;
+
+  console.log("PRECIO:", precioHabitacion);
+
+  const totalHabitacion =
+    precioHabitacion * noches;
 
   // consumos
   const [consumosRows] = await pool.query(`
     SELECT SUM(precio_aplicado * cantidad) AS total
     FROM consumo_servicio
-    WHERE id_reserva = ? AND anulado = 0
+    WHERE id_reserva = ?
+      AND anulado = 0
   `, [id_reserva]);
 
-  const totalConsumos = Number(consumosRows[0].total) || 0;
+  const totalConsumos =
+    Number(consumosRows[0].total) || 0;
 
-  return totalHabitacion + totalConsumos;
+  console.log("TOTAL HAB:", totalHabitacion);
+  console.log("TOTAL CONS:", totalConsumos);
+
+  // total final
+  const totalFinal =
+    totalHabitacion + totalConsumos;
+
+  // guardar en BD
+  await pool.query(`
+    UPDATE reservas
+    SET precio_total = ?
+    WHERE id_reserva = ?
+  `, [totalFinal, id_reserva]);
+
+  return totalFinal;
 }
 
 async function calcularSaldoPendiente(id_reserva) {
 
   /* 1. OBTENER NOCHES */
   const [diasRows] = await pool.query(`
-    SELECT DATEDIFF(fecha_fin, fecha_inicio) AS noches, id_habitacion
+    SELECT DATEDIFF(fecha_fin, fecha_inicio) AS noches,
+           id_habitacion
     FROM reservas
     WHERE id_reserva = ?
   `, [id_reserva]);
@@ -287,17 +332,21 @@ async function calcularSaldoPendiente(id_reserva) {
     throw new Error('Reserva no encontrada');
   }
 
-  const noches = diasRows[0].noches;
+  const noches = diasRows[0].noches || 0;
   const id_habitacion = diasRows[0].id_habitacion;
 
-  /* 2. PRECIO HABITACIÓN */
-  const [habitacionRows] = await pool.query(`
-    SELECT precio
-    FROM hotelroyal.habitaciones
-    WHERE id = ?
-  `, [id_habitacion]);
+  /* 2. OBTENER HABITACIÓN DESDE MICROSERVICIO */
+  const response = await axios.get(
+    `${process.env.HABITACIONES_SERVICE}/${id_habitacion}`
+  );
 
-  const precioHabitacion = Number(habitacionRows[0]?.precio) || 0;
+  const habitacion = response.data.habitacion;
+
+  if (!habitacion) {
+    throw new Error('Habitación no encontrada');
+  }
+
+  const precioHabitacion = Number(habitacion.precio) || 0;
 
   const totalHabitacion = precioHabitacion * noches;
 
@@ -310,7 +359,8 @@ async function calcularSaldoPendiente(id_reserva) {
       AND pagado = 0
   `, [id_reserva]);
 
-  const totalConsumosPendientes = Number(consumosRows[0].total) || 0;
+  const totalConsumosPendientes =
+    Number(consumosRows[0].total) || 0;
 
   return totalHabitacion + totalConsumosPendientes;
 }
@@ -333,6 +383,29 @@ async function pagarReserva(id_reserva) {
     SET estado = 'pagada'
     WHERE id_reserva = ?
   `, [id_reserva]);
+}
+
+async function eliminarReserva(id_reserva) {
+
+  // eliminar consumos asociados
+  await pool.query(`
+    DELETE FROM consumo_servicio
+    WHERE id_reserva = ?
+  `, [id_reserva]);
+
+  // eliminar huéspedes asociados
+  await pool.query(`
+    DELETE FROM huesped_reserva
+    WHERE id_reserva = ?
+  `, [id_reserva]);
+
+  // eliminar reserva
+  const [result] = await pool.query(`
+    DELETE FROM reservas
+    WHERE id_reserva = ?
+  `, [id_reserva]);
+
+  return result;
 }
 
 
@@ -359,5 +432,6 @@ module.exports = {
   pagarConsumoServicio,
   calcularTotalReserva,
   pagarReserva,
+  eliminarReserva,
   calcularSaldoPendiente
 };
